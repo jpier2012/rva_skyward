@@ -35,33 +35,51 @@ schoolsReq.setHeader('Content-Type', 'application/json');
 
 // Take the disctrict JSON object and pull out values
 HttpResponse schoolsRes = new Http().send(schoolsReq);
-valence.JSONParse dataRoot = new valence.JSONParse(schoolsRes.getBody());
+List<valence.JSONParse> schoolDataRoot = new valence.JSONParse(schoolsRes.getBody()).asList();
+Map<String, valence.JSONParse> firstRecord = new valence.JSONParse(schoolsRes.getBody()).get('[0]').asMap();
+List<String> fields = new List<String>(firstRecord.keySet());
 
-// get the specific District Name and District Code values from the parsed JSON
-// String districtName = testRoot.get('DistrictName').getStringValue();
-// String districtCode = testRoot.get('DistrictCode').getStringValue();
+String header = '';
 
-// test print
-// System.debug(dataRoot);
-System.debug(dataRoot.toStringPretty());
+for (String item : fields ) {
+    header = header + item + ',';
+}
+
+header = header + '\n';
 
 // System.debug('Object? : ' + testRoot.isObject());
 // System.debug('Array? : ' + testRoot.isArray());
 
-// System.debug(districtName);
-// System.debug(districtCode);
+String csvName = 'RVA Schools.csv';
+String subject = 'RVA Schools data from the API';
+String recordString = '';
+String finalString = '';
 
+for (valence.JSONParse school : schoolDataRoot) {
+    for (String field : fields) {
+        recordString = recordString + school.get(field).getStringValue() + ',';
+    }
+    finalString = finalString + recordString + '\n';
+    recordString = '';
+}
 
+finalString = header + finalString;
+    
+// send an email with the .csv file
 
-SchoolId,
-SchoolName,
-CurrentSchoolYear,
-GradeLow,
-GradeHigh,
-StreetAddress,
-City,
-State,
-ZipCode,
-OneLineAddress,
-PrincipalNameId
+List<String> toAddresses = new List<String> {'james.pier@servioconsulting.com'};
+
+Blob csvBlob = Blob.valueOf(finalString);
+
+Messaging.EmailFileAttachment csvAttachment = new Messaging.EmailFileAttachment();
+
+csvAttachment.setFileName(csvName);
+csvAttachment.setBody(csvBlob);
+Messaging.SingleEmailMessage email = new Messaging.SingleEmailMessage();
+
+email.setSubject(subject);
+email.setToAddresses(toAddresses);
+email.setPlainTextBody('');
+email.setFileAttachments(new Messaging.EmailFileAttachment[] { csvAttachment } );
+Messaging.SendEmailResult[] result = Messaging.sendEmail(new Messaging.SingleEmailMessage[] {email});
 
