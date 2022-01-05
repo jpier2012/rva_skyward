@@ -6,34 +6,31 @@ private String AUTH_TOKEN = getAuthToken();
 
 private String SCHOOL_ID = '800';
 
-// private String studentsEndpoint = endpoint + '/v1/students';
 private String schoolsEndpoint = endpoint + '/v1/schools';
+private String guardiansEndpoint = endpoint + '/v1/schools/' + SCHOOL_ID + '/guardians';
 
-// GET sample data from the API using the token
-HttpRequest schoolsReq = new HttpRequest();
-schoolsReq.setMethod('GET');
-schoolsReq.setEndpoint(schoolsEndpoint);
-schoolsReq.setHeader('Authorization', 'Bearer ' + AUTH_TOKEN);
-schoolsReq.setHeader('Content-Type', 'application/json');
-
-// Parse the returned body as a list of objects
-HttpResponse schoolsRes = new Http().send(schoolsReq);
-List<valence.JSONParse> schoolDataRoot = new valence.JSONParse(schoolsRes.getBody()).asList();
-List<String> fields = new List<String>(schoolDataRoot[0].asMap().keySet());
-   
-// send an email with the .csv file
-String csvName = 'RVA Schools.csv';
-String dataString = createCsvString(fields, schoolDataRoot);
-String subject = 'RVA Schools data from the API';
-List<String> toAddresses = new List<String> {'james.pier@servioconsulting.com'};
+// list of endpoints from which to get data
+private List<String> dataEndpoints = new List<String> { schoolsEndpoint, guardiansEndpoint };
     
-sendCsvEmail(csvName, dataString, subject, toAddresses);
+// recipient email addresses for the .csv email
+private List<String> toAddresses = new List<String> {'james.pier@servioconsulting.com'};
+
+/////////////////
+//// Schools ////
+/////////////////
+
+// get the JSON data root from the schools endpoint
+private List<valence.JSONParse> schoolsDataRoot = getJsonData(schoolsEndpoint);
+    
+sendCsvEmail('RVA schools data from the API', 'RVA schools.csv', createCsvString(schoolsDataRoot), toAddresses);
+
 
 /////////////////////////////////////////////////
 //////////////////  Helpers  ////////////////////
 /////////////////////////////////////////////////
 
 // Return the token from the token endpoint
+
 private String getAuthToken() {
     
     // send the HTTP request to the token endpoint with the username and password credentials 
@@ -56,8 +53,26 @@ private String getAuthToken() {
     return root.get('access_token').getStringValue();
 }
 
+// GET data from the endpoint using the AUTH_TOKEN variable
+
+private List<valence.JSONParse> getJsonData(String endpoint) {
+    HttpRequest req = new HttpRequest();
+    req.setMethod('GET');
+    req.setEndpoint(endpoint);
+    req.setHeader('Authorization', 'Bearer ' + AUTH_TOKEN);
+    req.setHeader('Content-Type', 'application/json');
+    
+    // Parse the returned body as a list of objects
+    HttpResponse res = new Http().send(req);
+    return new valence.JSONParse(res.getBody()).asList();
+}
+
 // create .csv headers and data from the fields/keys
-private String createCsvString(List<String> fields, List<valence.JSONParse> data) {
+
+private String createCsvString(List<valence.JSONParse> data) {
+
+	// pull the first record in the data to get the field names
+	List<String> fields = new List<String>(data[0].asMap().keySet());
 
 	String header;
     String recordString = '';
@@ -84,8 +99,8 @@ private String createCsvString(List<String> fields, List<valence.JSONParse> data
 }
 
 // send the .csv file in an email attachment
-private void sendCsvEmail(String csvName, String csvData, String emailSubject, List<String> toAddresses) {
-    
+
+private void sendCsvEmail(String emailSubject, String csvName, String csvData, List<String> toAddresses) {
     // create a blob from the csv data string
     Blob csvBlob = Blob.valueOf(csvData);
     
